@@ -209,6 +209,15 @@ class DFUAdapter(BLEDriverObserver, BLEAdapterObserver):
         if self.adapter.db_conns[self.conn_handle].get_char_handle(DFUAdapter.SERVICE_CHANGED_UUID):
             self.adapter.enable_indication(self.conn_handle, DFUAdapter.SERVICE_CHANGED_UUID)
 
+        # If there is a target_device_name then change the advertising name of the bootloader
+        if self.target_device_name:
+            # <OPCODE - 1 byte (0x02)> <NAME LEN - 1 byte> <NAME>
+            data = [0x02] + [len(self.target_device_name)] + [ord(let) for let in self.target_device_name]
+            self.adapter.write_req(self.conn_handle, buttonless_uuid, data)
+            response = self.indication_q.get(timeout=DfuTransportBle.DEFAULT_TIMEOUT)
+            if response[DFUAdapter.ERROR_CODE_POS] != 0x01:
+                raise Exception("Error - Unexpected response")
+
         # Enter DFU mode
         self.adapter.write_req(self.conn_handle, buttonless_uuid, [0x01])
         response = self.indication_q.get(timeout=DfuTransportBle.DEFAULT_TIMEOUT)
