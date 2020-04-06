@@ -109,6 +109,9 @@ class Dfu:
             if "Extended Error 0x05" in err.msg:
                 # In that case don't raise the exception, just print the message.
                 logger.info(err.msg)
+                # And update the event message with the size of the firmware, so we still get to 100%
+                image_size = os.path.getsize(os.path.join(self.unpacked_zip_path, firmware.bin_file))
+                self.dfu_transport._send_event(event_type=DfuEvent.PROGRESS_EVENT, progress=image_size)
             else:
                 raise
         finally:
