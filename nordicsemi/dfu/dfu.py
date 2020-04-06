@@ -44,7 +44,9 @@ import tempfile
 
 
 # Nordic libraries
+from nordicsemi.dfu.dfu_transport   import DfuEvent
 from nordicsemi.dfu.package         import Package
+from pc_ble_driver_py.exceptions    import NordicSemiException
 
 logger = logging.getLogger(__name__)
 
@@ -87,22 +89,30 @@ class Dfu:
         time.sleep(self.connect_delay)
         self.dfu_transport.open()
 
-        start_time = time.time()
+        try:
+            start_time = time.time()
 
-        logger.info("Sending init packet...")
-        with open(os.path.join(self.unpacked_zip_path, firmware.dat_file), 'rb') as f:
-            data    = f.read()
-            self.dfu_transport.send_init_packet(data)
+            logger.info("Sending init packet...")
+            with open(os.path.join(self.unpacked_zip_path, firmware.dat_file), 'rb') as f:
+                data    = f.read()
+                self.dfu_transport.send_init_packet(data)
 
-        logger.info("Sending firmware file...")
-        with open(os.path.join(self.unpacked_zip_path, firmware.bin_file), 'rb') as f:
-            data    = f.read()
-            self.dfu_transport.send_firmware(data)
+            logger.info("Sending firmware file...")
+            with open(os.path.join(self.unpacked_zip_path, firmware.bin_file), 'rb') as f:
+                data    = f.read()
+                self.dfu_transport.send_firmware(data)
 
-        end_time = time.time()
-        logger.info("Image sent in {0}s".format(end_time - start_time))
-
-        self.dfu_transport.close()
+            end_time = time.time()
+            logger.info("Image sent in {0}s".format(end_time - start_time))
+        except NordicSemiException as err:
+            # Extended Error 0x05 means the version can't be loaded.
+            if "Extended Error 0x05" in err.msg:
+                # In that case don't raise the exception, just print the message.
+                logger.info(err.msg)
+            else:
+                raise
+        finally:
+            self.dfu_transport.close()
 
 
     def dfu_send_images(self):
